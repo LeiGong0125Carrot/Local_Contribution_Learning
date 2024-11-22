@@ -224,7 +224,7 @@ def train_step(model, val_dataloader, data_loader, optimizer, scheduler, device,
                         new_proto=new_proto, log=LOG, tau=tau, offset_mapping=offset_mapping, processed_text=processed_text, 
                         current_batch_num=batch_num, original_text = original_text)
         # span_loss = model.AdaptiveMask.get_loss()
-        loss = nn.CrossEntropyLoss()(outputs, labels) + 0.1 * loss_mu + 0.001 * model.diversity_loss #+ 0.1 * augmented_loss#+ span_loss#+ att_loss.long() + augmented_loss #+ augmented_loss#+ 0.0001 * diversity_loss#+  0.0001 *  locality_loss# + 0.00001 * cLoss #+ 0.001 * eLoss
+        loss = nn.CrossEntropyLoss()(outputs, labels) + 0.1 * loss_mu - 0.001 * model.diversity_loss #+ 0.1 * augmented_loss#+ span_loss#+ att_loss.long() + augmented_loss #+ augmented_loss#+ 0.0001 * diversity_loss#+  0.0001 *  locality_loss# + 0.00001 * cLoss #+ 0.001 * eLoss
         
         # loss += span_loss
         Loss += loss.item()
