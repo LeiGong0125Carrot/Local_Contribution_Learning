@@ -57,8 +57,6 @@ class BERTClassifier(nn.Module):
     def __init__(self, args, bert_model_name, num_classes, num_prototype, batch_size, hidden_dim, max_length, distributed=False, tokenizer=None):
         super(BERTClassifier, self).__init__()
         self.bert = SentenceTransformer('sentence-transformers/all-mpnet-base-v2') #all-MiniLM-L6-v2
-        self.bert._first_module().auto_model.load_state_dict(torch.load(path, map_location=device))
-        # self.bert._first_module().auto_model.load()
         for param in self.bert.parameters():
             param.requires_grad = False
         self.args = args
