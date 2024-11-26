@@ -34,15 +34,4 @@ This repository contains the implementation of **ProtoLens**, a flexible and int
 ### Training the Model
 Run the `experiment.py` script with appropriate configurations:
 ```bash
-python experiment.py 
-
-### Key Arguments
-Some of the key configurable arguments in `args.py`:
-- `--dataset`: Dataset.
-- `--lr`: Learning rate for model training.
-- `--epochs`: Number of training epochs.
-- `--batch_size`: Batch size for training.
-- `--num_prototypes`: Number of prototypes to use.
-
-
-For a complete list of arguments, refer to `args.py`.
+python experiment.py
