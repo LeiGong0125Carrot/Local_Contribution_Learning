@@ -26,8 +26,8 @@ This repository contains the implementation of **ProtoLens**, a flexible and int
 
 1. Clone the repository:
    ```bash
-   git clone <repository_url>
-   cd <repository_name>
+   git clone <link>
+   cd ProtoLens
 
 ## Usage
 
