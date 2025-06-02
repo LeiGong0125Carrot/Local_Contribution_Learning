@@ -32,9 +32,9 @@ parser.add_argument('-seed', '--r_seed', type = int, default=42)
 pnfrl_args = parser.parse_args()
 pnfrl_args.folder_name = '_{}_{}_{}_gNum_{}_ws_{}_e_{}_pNum_{}_lr{}'.format(
     pnfrl_args.data_set, pnfrl_args.setting, pnfrl_args.bert_model_name, pnfrl_args.gaussian_num, pnfrl_args.window_size, pnfrl_args.epoch, pnfrl_args.prototype_num,  pnfrl_args.learning_rate)
-pnfrl_args.base_folder = "/home/bwei2/ProtoTextClassification/Datasets"
+pnfrl_args.base_folder = "Datasets"
 if pnfrl_args.data_set == "IMDB":
-    pnfrl_args.dataset_path = "/home/bwei2/ProtoTextClassification/Datasets/IMDB/IMDB Dataset.csv"
+    pnfrl_args.dataset_path = "/Datasets/IMDB/IMDB Dataset.csv"
 else: 
     pnfrl_args.dataset_path = " "
 pnfrl_args.num_classes = 2
