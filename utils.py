@@ -38,16 +38,6 @@ from scipy.special import softmax
 import string
 from docx.shared import RGBColor
 
-# def process(input_string):
-#     # Make a translation table that maps all punctuation characters to None
-#     translator = str.maketrans("", "", string.punctuation)
-
-#     # Apply the translation table to the input string
-#     result = input_string.translate(translator)
-
-#     return result.lower().split()
-
-
 
 
 def check_and_create_folder(path):
@@ -70,15 +60,6 @@ digits = "([0-9])"
 multiple_dots = r'\.{2,}'
 prefixes = "(Mr|St|Mrs|Ms|Dr|Prof|Capt|Cpt|Lt|Mt)[.]"
 
-
-
-# def process(x):
-#     x = re.sub('[,\.!?:()"]', '', x)
-#     x = re.sub('<.*?>', ' ', x)
-#     x = re.sub('http\S+', ' ', x)
-#     x = re.sub('[^a-zA-Z0-9]', ' ', x)
-#     x = re.sub('\s+', ' ', x)
-#     return x.lower().strip().split()
 
 def process(text):
     """
@@ -247,18 +228,7 @@ def get_data_loader(dataset, dataset_path, world_size, rank, batch_size, max_len
     train_dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=False, pin_memory=True)
     val_dataloader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False, pin_memory=True)
     return train_dataloader, val_dataloader, tokenizer, train_texts
-    
-    # elif dataset== "protoInstance":
-    #     extended_texts = []
-    #     texts = pd.read_csv(data_file, index_col=0, header=None).to_numpy()
-    #     for i in range(texts.shape[0]):
-    #         for j in range(texts.shape[1]):
-    #             extended_texts.append(texts[i,j])
-    #     # print(len(extended_texts))
-        
-    #     eval_protoInstance_dataset = ProtoInstanceDataset(extended_texts, tokenizer, max_length)
-    #     loader = DataLoader(eval_protoInstance_dataset, batch_size=20, shuffle=False, pin_memory=True)
-    #     return loader
+
 
 
 def find_keywords(keywords, text):
@@ -333,8 +303,6 @@ def longest_common_sublist_torch(list1, list2):
 
     return list(range(start, end + 1))
 
-# result = longest_common_sublist_torch(list1, list2)
-# print(result)  # Output will be a PyTorch tensor
 def get_selected_token_index(label_mask, start_point_ids, num_prototypes):
     # Get the batch size
     batch_size = label_mask.shape[0]# // num_prototypes
@@ -342,10 +310,6 @@ def get_selected_token_index(label_mask, start_point_ids, num_prototypes):
     for i in range(batch_size):
         # print("i",i)
         for j in range(num_prototypes):
-            # print("J",j)
-            # if i == 9 and j == 0:
-            #     print(start_point_ids[i*num_prototypes+ j])
-            #     print(list(label_mask[i, j].cpu().numpy()))
             label_mask_list = list(label_mask[i, j].cpu().numpy())
             target = start_point_ids[i*num_prototypes+ j]
             flag = True
@@ -358,67 +322,13 @@ def get_selected_token_index(label_mask, start_point_ids, num_prototypes):
                     flag = False
                     all_selected_token_index.append(temp)#longest_common_sublist_torch(label_mask[i, j], start_point_ids[i*num_prototypes+ j]))
                     break
-                    # else:
-                    #     key=True
-                    #     candi = temp
-            # if key: 
-            #     all_selected_token_index.append(candi)
             if flag  :
                 all_selected_token_index.append(0)
     # print(len(all_selected_token_index))
     return all_selected_token_index # Reshape back to original dimensions
 
 
-def draw_similarity(similarity_matrix, batch_num, text_num=0):
-    k = similarity_matrix.shape[0]  # Example value for k
-    num_words = similarity_matrix.shape[1]
-    
-    
-        # Create a 5 by 4 grid of subplots for boxplots
-    fig, axes = plt.subplots(4, 2, figsize=(12, 8))
 
-    # Flatten the axes array for easier indexing
-    axes = axes.flatten()
-
-    # Create a boxplot for each row (axis=1)
-    for i in range(k):
-        # logging.info(similarity_matrix[i, :].shape[0])
-        axes[i].bar(range(similarity_matrix[i, :].shape[0]), similarity_matrix[i, :])
-        axes[i].set_title(f'Row {i+1}')
-        axes[i].set_xticks([])  # Remove x-tick labels for cleanliness
-
-    # Adjust layout for better spacing
-    # plt.xlabel("index")
-    plt.tight_layout()
-    plt.savefig("/home/bwei2/ProtoTextClassification/similarity_plot/simi_distribution_before_"+str(batch_num)+"_"+str(text_num)+".png")
-    # Conv1d expects input of shape (batch_size, channels, width), so we treat the 8 rows as channels
-    # similarity_matrix =torch.tensor( similarity_matrix).unsqueeze(1)  # Reshape to (8, 1, k)
-
-    # Define a 1D convolution kernel (e.g., a simple averaging kernel)
-    kernel = np.array([1/3, 1/3, 1/3])  # Shape (1, 1, kernel_size)
-
-    # Apply the convolution along dimension 1 (rows)
-    conv_matrix = np.zeros_like(similarity_matrix)
-    for i in range(k):
-        conv_matrix[i, :] = signal.convolve(similarity_matrix[i, :], kernel , mode='same')
-
-    # Create a 5 by 4 grid of subplots for boxplots
-    fig, axes = plt.subplots(4, 2, figsize=(12, 8))
-
-    # Flatten the axes array for easier indexing
-    axes = axes.flatten()
-
-    # Create a boxplot for each row (axis=1)
-    for i in range(k):
-        # logging.info(similarity_matrix[i, :].shape[0])
-        axes[i].bar(range(conv_matrix[i, :].shape[0]), conv_matrix[i, :])
-        axes[i].set_title(f'Prototype {i+1}')
-        axes[i].set_xticks([])  # Remove x-tick labels for cleanliness
-
-    # Adjust layout for better spacing
-    plt.tight_layout()
-    plt.savefig("/home/bwei2/ProtoTextClassification/similarity_plot/simi_distribution_after_"+str(batch_num)+"_"+str(text_num)+".png")
-    
 
 
 
@@ -451,74 +361,19 @@ def test_intermediate_results(test_text_list, tokenizer, model, device):
             logging.info(f"Similarity: {similarity[:,proto_num].item():.4f}\t\n Prototype {proto_num}: {TEST_UNTOKENized}" )
     
 
-
-# def remove_deactivated_elements(pi, mu, sigma, threshold=0.15):
-#     batch_size=pi.shape[0]
-#     final_active_pi_list = []
-#     final_active_mu_list = []
-#     final_active_sigma_list = []
-#     for i in range(batch_size):
-#         active_pi_list = []
-#         active_mu_list = []
-#         active_sigma_list = []
-#         for idx, ele in enumerate(pi[i]):
-#             if ele >= torch.mean(pi[i]):
-#                 if mu[i,idx] < 512:
-#                     active_pi_list.append(ele)
-#                     active_mu_list.append(mu[i,idx])
-#                     active_sigma_list.append(sigma[i,idx])
-#         if len(active_pi_list) == 0:
-#         #     ind__ = torch.argmax(pi[i])
-#         #     if mu[i,ind__]> 512:
-#             active_pi_list.append(torch.tensor(0))
-#             active_mu_list.append(torch.tensor(0).cuda())
-#             active_sigma_list.append(torch.tensor(0))
-#         #     else:
-                
-#         #         active_pi_list.append(pi[i,ind__])
-#         #         active_mu_list.append(mu[i,ind__])
-#         #         active_sigma_list.append(sigma[i,ind__])
-#         final_active_pi_list.append(active_pi_list)
-#         final_active_mu_list.append(active_mu_list)
-#         final_active_sigma_list.append(active_sigma_list)
-    
-#     return final_active_pi_list, final_active_mu_list, final_active_sigma_list
-
-
-# import torch
 def remove_deactivated_elements(pi, mu, sigma, threshold=0.15):
-    """
-    Remove deactivated components from pi, mu, and sigma based on a threshold.
-    If no components are active for a sample, retain the component with the highest pi.
-    If no such component exists, append an empty tensor.
-
-    Args:
-        pi (torch.Tensor): Tensor of shape (batch_size, n_components) representing mixture weights.
-        mu (torch.Tensor): Tensor of shape (batch_size, n_components) representing means.
-        sigma (torch.Tensor): Tensor of shape (batch_size, n_components) representing standard deviations.
-        threshold (float): Threshold to determine active components.
-
-    Returns:
-        Tuple[List[torch.Tensor], List[torch.Tensor], List[torch.Tensor]]:
-            - List of tensors containing active pi values per sample.
-            - List of tensors containing corresponding mu values per sample.
-            - List of tensors containing corresponding sigma values per sample.
-    """
-    # Create a boolean mask where pi > threshold
     active_mask = pi > threshold  # Shape: (batch_size, n_components)
-    
-    # Determine which samples have at least one active component
+
     has_active = active_mask.any(dim=1)  # Shape: (batch_size,)
     
-    # Compute argmax indices for pi to retain the component with the highest weight
     argmax_indices = pi.argmax(dim=1)  # Shape: (batch_size,)
     
-    # Initialize lists to store the active components
+
     final_active_pi_list = []
     final_active_mu_list = []
     final_active_sigma_list = []
     
-    # Use list comprehensions for efficient iteration
+
     final_active_pi_list = [
         pi[i][active_mask[i]] if has_active[i] else pi[i, argmax_indices[i]].unsqueeze(0)
         for i in range(pi.size(0))
