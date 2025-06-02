@@ -25,7 +25,7 @@ class AdaptiveMask(nn.Module):
         self._ramp_size = ramp_size
         self.max_length = 512
         self.batch_size = 16
-        self._loss_coeff = 0.00002
+        self._loss_coeff = 0.01
         self.current_val_left = init_val # nn.Parameter(torch.zeros(*shape) + init_val)
         self.current_val_right = init_val # nn.Parameter(torch.zeros(*shape) + init_val)
 
