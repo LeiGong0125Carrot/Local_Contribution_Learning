@@ -1,0 +1,51 @@
+master_port 123314
+prototype_num 20
+setting fine-tune
+epoch 25
+device_ids [0]
+nr 0
+round_count 0
+master_address 127.0.0.1
+log_iter 18
+gaussian_num 6
+window_size 5
+data_set Amazon
+bert_model_name all-mpnet-base-v2
+hidden_dim 768
+max_length 512
+batch_size 32
+learning_rate 0.0005
+r_seed 42
+k 5
+folder_name _Amazon_fine-tune_all-mpnet-base-v2_gNum_6_ws_5_e_25_pNum_20_lr0.0005_bs32
+base_folder Datasets
+dataset_path /scratch/nkw3mr/intepre_clinical_long_doc/ProtoLens/Datasets/Amazon
+num_classes 2
+set_folder_path log_folder/Amazon
+folder_path log_folder/Amazon/_Amazon_fine-tune_all-mpnet-base-v2_gNum_6_ws_5_e_25_pNum_20_lr0.0005_bs32
+model_path log_folder/Amazon/_Amazon_fine-tune_all-mpnet-base-v2_gNum_6_ws_5_e_25_pNum_20_lr0.0005_bs32/model.pth
+log log_folder/Amazon/_Amazon_fine-tune_all-mpnet-base-v2_gNum_6_ws_5_e_25_pNum_20_lr0.0005_bs32/log.txt
+gpus 1
+nodes 1
+world_size 1
+Prototype vector and sentence pool already exist. Skipping generation.
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  4.78it/s]Batches: 100%|██████████| 1/1 [00:00<00:00,  4.78it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00, 64.76it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00, 131.12it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00, 90.36it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00, 46.65it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00, 67.94it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00, 69.25it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00, 120.13it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00, 68.82it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00, 67.37it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00, 51.49it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00, 74.93it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00, 70.08it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00, 68.73it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00, 50.72it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00, 72.11it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00, 74.00it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00, 73.75it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00, 76.24it/s]
+Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|██████████| 1/1 [00:00<00:00, 76.53it/s]

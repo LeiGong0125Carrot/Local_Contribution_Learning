@@ -24,19 +24,19 @@ from transformers import AutoTokenizer, AutoModel
 from itertools import chain
 import regex  # important - not using the usual re module
 
-import docx
+# import docx
 from sklearn.feature_extraction.text import CountVectorizer
-from gpu_mem_track import MemTracker
-import GPUtil
+# from gpu_mem_track import MemTracker
+# import GPUtil
 import gc
 from sklearn.metrics.pairwise import cosine_similarity
-from _highlight import highlight_document
+# from _highlight import highlight_document
 import regex as re # important - not using the usual re module
 # from sklearn.metrics.pairwise import cosine_similarity
-import docx
+# import docx
 from scipy.special import softmax
 import string
-from docx.shared import RGBColor
+# from docx.shared import RGBColor
 
 
 
@@ -203,7 +203,7 @@ def load_imdb_data(data_file):
 
 def get_data_loader(dataset, dataset_path, world_size, rank, batch_size, max_length, bert_model_name, distributed = True):
     data_file = dataset_path
-    base = "/projects/zzhu20/Bowen/ProtoTextClassification/Datasets/"
+    base = "/scratch/nkw3mr/intepre_clinical_long_doc/ProtoLens/Datasets/"
     tokenizer = AutoTokenizer.from_pretrained('sentence-transformers/all-mpnet-base-v2')
     if dataset == "IMDB":
         # data_file = dataset_path
@@ -244,7 +244,7 @@ def find_keywords(keywords, text):
             r[-1] = end        # combine with previous segment
     return r
 
-def highlight_sections_docx(positions, text, document, label_text=None, key_words=None, matched_proto=None):
+'''def highlight_sections_docx(positions, text, document, label_text=None, key_words=None, matched_proto=None):
     """ Add characters to a text to highlight the segments indicated by
      a list of alternating start and end positions """
     # document = docx.Document()
@@ -268,7 +268,7 @@ def highlight_sections_docx(positions, text, document, label_text=None, key_word
         if i % 2:  # odd segments are highlighted
             run.bold = True   # or add other formatting - see https://python-docx.readthedocs.io/en/latest/api/text.html#run-objects 
             run.font.color.rgb = RGBColor(0x42, 0x24, 0xE9)
-    return document
+    return document'''
 
 
 

@@ -1,0 +1,13 @@
+2025-06-18 15:03:02,750 - [DEBUG] - Starting new HTTPS connection (1): huggingface.co:443
+2025-06-18 15:03:02,787 - [DEBUG] - https://huggingface.co:443 "HEAD /sentence-transformers/all-mpnet-base-v2/resolve/main/tokenizer_config.json HTTP/11" 200 0
+2025-06-18 15:03:02,943 - [INFO] - Use pytorch device_name: cuda
+2025-06-18 15:03:02,943 - [INFO] - Load pretrained SentenceTransformer: sentence-transformers/all-mpnet-base-v2
+2025-06-18 15:03:02,966 - [DEBUG] - https://huggingface.co:443 "HEAD /sentence-transformers/all-mpnet-base-v2/resolve/main/modules.json HTTP/11" 200 0
+2025-06-18 15:03:02,985 - [DEBUG] - https://huggingface.co:443 "HEAD /sentence-transformers/all-mpnet-base-v2/resolve/main/config_sentence_transformers.json HTTP/11" 200 0
+2025-06-18 15:03:03,004 - [DEBUG] - https://huggingface.co:443 "HEAD /sentence-transformers/all-mpnet-base-v2/resolve/main/README.md HTTP/11" 200 0
+2025-06-18 15:03:03,030 - [DEBUG] - https://huggingface.co:443 "HEAD /sentence-transformers/all-mpnet-base-v2/resolve/main/modules.json HTTP/11" 200 0
+2025-06-18 15:03:03,052 - [DEBUG] - https://huggingface.co:443 "HEAD /sentence-transformers/all-mpnet-base-v2/resolve/main/sentence_bert_config.json HTTP/11" 200 0
+2025-06-18 15:03:03,078 - [DEBUG] - https://huggingface.co:443 "HEAD /sentence-transformers/all-mpnet-base-v2/resolve/main/config.json HTTP/11" 200 0
+2025-06-18 15:03:03,539 - [DEBUG] - https://huggingface.co:443 "HEAD /sentence-transformers/all-mpnet-base-v2/resolve/main/tokenizer_config.json HTTP/11" 200 0
+2025-06-18 15:03:03,595 - [DEBUG] - https://huggingface.co:443 "GET /api/models/sentence-transformers/all-mpnet-base-v2/revision/main HTTP/11" 200 6808
+2025-06-18 15:03:03,626 - [DEBUG] - https://huggingface.co:443 "GET /api/models/sentence-transformers/all-mpnet-base-v2 HTTP/11" 200 6808

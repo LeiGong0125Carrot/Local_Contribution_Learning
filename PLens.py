@@ -33,23 +33,23 @@ from utils import *
 import math
 # from model_ours import *
 from sklearn.feature_extraction.text import CountVectorizer
-from gpu_mem_track import MemTracker
-import GPUtil
+# from gpu_mem_track import MemTracker
+# import GPUtil
 import gc
 from sklearn.metrics.pairwise import cosine_similarity
-from _highlight import highlight_document
+# from _highlight import highlight_document
 import regex as re # important - not using the usual re module
 import torch.optim as optim
 import torch.distributions as dist
-import docx
+# import docx
 from scipy.special import softmax
 Representative_Instance = []
 import pickle
 import json
 from AdaptiveMask import *
-from CrossAttention import *
+# from CrossAttention import *
 EPSILON = np.finfo(np.float32).tiny
-from MultiHeadSelfAttention import *
+# from MultiHeadSelfAttention import *
 from DPGMM import *
 
 
@@ -76,7 +76,7 @@ class BERTClassifier(nn.Module):
         self.AdaptiveMask.max_length = self.max_length
         self.fc = nn.Linear(self.num_prototypes, num_classes)
         self.epsilon = 1e-4
-        self.gumbel = GumbelSigmoid()
+        # self.gumbel = GumbelSigmoid()
         self.samples = None
         self.keyphrase_ngram_range = (args.window_size, args.window_size)
         self.count = CountVectorizer(
@@ -150,14 +150,17 @@ class BERTClassifier(nn.Module):
         label_mask = input_ids.unsqueeze(1).expand(-1,  self.num_prototypes, -1)
         words, words_in_order, df, vocab = self.get_words(original_text = original_text)
         candidates_embeddings, candidate_words, chunk_similarity = self.get_start_point(original_text,df, words, mode=mode, batch_num=current_batch_num, prototype_vec=aligned_prototype_vectors) #(16, 512, 768)
+        # print(f"Chunk Similarity dimension: {chunk_similarity.shape}")
         chunk_similarity = chunk_similarity.permute(0, 2, 1).reshape(-1, 512)
+        # print(f"Reshaped Chunk Similarity dimension: {chunk_similarity.shape}")
+        
         pi, mu, sigma = self.mdn(chunk_similarity)#.reshape(input_ids.shape[0], self.num_prototypes, -1)
 
         mu_label = torch.topk(chunk_similarity, pi.shape[1], dim=1).indices
 
         loss_mu = self.mdn.loss(pi, mu, sigma , mu_label)
         mask = self.AdaptiveMask(mu, sigma, pi, batch_size=input_ids.shape[0], num_prototypes=self.num_prototypes).reshape(input_ids.shape[0], self.num_prototypes, -1)
-
+    
         x = self.bert._first_module().auto_model(input_ids, attention_mask, output_hidden_states=False).last_hidden_state#self.bert.encode(original_text,  normalize_embeddings=True, convert_to_tensor=True, show_progress_bar=False, output_value="token_embeddings")
 
 
@@ -273,7 +276,7 @@ class BERTClassifier(nn.Module):
 
 
     def ran_sent_init(self, ):
-        df = pd.read_csv(".../ProtoTextClassification/Datasets/" + str(self.args.data_set) + "/"+str(self.args.data_set)+"_train_sub_sentences.csv")["review"].tolist()  # Replace "xx.csv" with your actual file path
+        df = pd.read_csv("/scratch/nkw3mr/intepre_clinical_long_doc/ProtoLens/Datasets/" + str(self.args.data_set) + "/"+str(self.args.data_set)+"_train_sub_sentences.csv")["review"].tolist()  # Replace "xx.csv" with your actual file path
         # Randomly select 10 indices
         random_indices = np.random.choice(len(df), size=self.num_prototypes, replace=False)
         # Get the elements at these random indices

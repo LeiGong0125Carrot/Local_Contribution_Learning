@@ -4,7 +4,7 @@ import random
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from Gumbel_Sigmoid import *
+# from Gumbel_Sigmoid import *
 from utils import *
 
 class Binarize(torch.autograd.Function):
@@ -39,6 +39,7 @@ class AdaptiveMask(nn.Module):
             new_sigma = []
             new_max_size_all = []
             threshold = torch.mean(pi_curr)
+            # select the n-gram and their sigma with pi larger than the average
             for i, ele in enumerate(pi_curr):
                 if ele >= threshold or ele == torch.max(pi_curr):
                     new_sigma.append(sigma_curr[i])
@@ -50,12 +51,26 @@ class AdaptiveMask(nn.Module):
             else:
                 sigma_curr = new_sigma
                 max_size_all = new_max_size_all
+            
+            print(f"Component selected: {new_max_size_all}")
+            
+            
+            # keep the center at least 1.0
             max_size_all = [torch.clamp(max_size, min=1.0) for max_size in max_size_all]
+            # print(f"Processed Component: {max_size_all}")
+            
 
-
+            # round up the center to the nearest index
             max_size_all = [torch.round(i.clamp(1.0, 511.0)) for i in max_size_all]
+
             mask_left = [torch.linspace((1 - max_size.item()), 0, steps=int(max_size.item())).unsqueeze(0).cuda() + self.current_val_left* sigma_ * max_size for max_size,sigma_ in zip(max_size_all, sigma_curr)]  
+            # print(f"Left process: {mask_left}")
+            # print(f"Left process shape: {mask_left.shape}")
             mask_right = [torch.linspace(-1,  (max_size.item() - self.max_length - 1), steps=self.max_length - int(max_size.item())).unsqueeze(0).cuda() + self.current_val_right * sigma_ * (self.max_length - max_size) for max_size,sigma_ in zip(max_size_all, sigma_curr)]
+            # print(f"Right Process: {mask_right}")
+            # print(f"Right Process shape: {mask_right.shape}")
+            # exit(0)
+
             mask = torch.vstack([torch.cat((mask_left[i], mask_right[i]), 1) for i in range(len(max_size_all))])#.reshape(batch_size, -1, num_prototypes)
             mask = mask / self._ramp_size + 1
             # mask = mask.clamp(0, 1)
@@ -64,7 +79,11 @@ class AdaptiveMask(nn.Module):
             mask = Binarize.apply(mask)
             all_mask.append(mask)
         mask = torch.vstack(all_mask)
+        print(f"Final mask shape: {mask.shape}")
+        print(f"Final mask: {mask}")
         mask = mask.clamp(0, 1)
+        print(f"Clamped mask: {mask}")
+        exit(0)
         return mask
 
     def get_current_max_size(self, include_ramp=True):

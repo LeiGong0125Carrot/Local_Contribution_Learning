@@ -35,7 +35,7 @@ from utils import *
 
 from PLens import *
 import gc
-from gpu_mem_track import MemTracker
+# from gpu_mem_track import MemTracker
 from torch.cuda.amp import autocast
 import os 
 
@@ -45,7 +45,8 @@ from datetime import datetime
 import json
 import pickle
 from sklearn.metrics.pairwise import cosine_similarity
-from Gumbel_Sigmoid import *
+from prototype_generate_utility import generate_prototype
+# from Gumbel_Sigmoid import *
 
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
@@ -279,11 +280,42 @@ def train_model(gpu, args):
             logging.basicConfig(level=logging.DEBUG, stream=sys.stdout, format=log_format)
         else:
             logging.basicConfig(level=logging.DEBUG, filename=log_file, filemode='w', format=log_format)
+    
+
     adam_epsilon = 1e-8
     num_epochs = args.epoch
     dataset = args.data_set
+
+   
+    # os.path.join(self.model_spec_folder, str(args.data_set)+"_cluster_"+str(self.num_prototypes)+"_centers.npy"
+    # print(f"Model path: {model_spec_folder}")
+    # prototype_path = os.path.join(model_spec_folder, str(args.data_set) + '_cluster_' + str(args.prototype_num) + '_to_sub_sentence.csv')
+    # print(f"Prototype path: {os.path.join(model_spec_folder, str(args.data_set) + '_cluster_' + str(args.prototype_num) + '_to_sub_sentence.csv')}")
+
     train_dataloader, val_dataloader, tokenizer, train_texts = get_data_loader(dataset,args.dataset_path, args.world_size, rank, args.batch_size, args.max_length, args.bert_model_name)
+    
+    model_spec_folder = os.path.join(os.path.join(args.base_folder, args.data_set), args.bert_model_name)
+
+    new_prototype_path = os.path.join(
+            model_spec_folder,
+            f"{args.data_set}_cluster_{args.prototype_num}"
+    ) 
+
+    if not os.path.exists(model_spec_folder):
+            os.makedirs(model_spec_folder, exist_ok=True)
+            print(f"Created directory: {model_spec_folder}")
+
+    prototype_npy_path = new_prototype_path + "_centers.npy"
+    sentence_pool_path = new_prototype_path + "_to_sub_sentence.csv"
+   
+
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    if os.path.exists(prototype_npy_path) and os.path.exists(sentence_pool_path):
+        print("Prototype vector and sentence pool already exist. Skipping generation.")
+    else:
+        generate_prototype(args, model_spec_folder, prototype_npy_path, sentence_pool_path, device)
+    
+
     num_warmup_steps = 0
     num_training_steps = len(train_dataloader)*num_epochs
     model = BERTClassifier(args=args, bert_model_name=args.bert_model_name, num_classes=args.num_classes, 
@@ -291,6 +323,10 @@ def train_model(gpu, args):
                            batch_size=args.batch_size, hidden_dim=args.hidden_dim, max_length=args.max_length, 
                            tokenizer=tokenizer).to(device)
     model.tokenizer = tokenizer
+    
+
+
+
     model.args = args
     best_result = 0
     specific_param_left = model.AdaptiveMask.current_val_left

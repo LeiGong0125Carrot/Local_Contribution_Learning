@@ -12,12 +12,22 @@ class StickBreakingProcess(nn.Module):
     def forward(self, logits):
         # Apply sigmoid to logits to get the nu values in (0,1)
         nu = torch.sigmoid(logits)
+        
         # Compute pi using the stick-breaking process
+        # print(f"Nu shape in Stick Breaking: {nu.shape}")
         pi = torch.ones_like(nu)
+        # print(f"Pi in Stick Breaking: {pi}")
+        # print(f"Pi shape: {pi.shape}")
         prod_term = torch.ones_like(nu[:, 0])  # Initialize the product term for the first component
+        # print(f"Prob Term in prob_term: {prod_term}")
+        # print(f"Prob Term shape in Stick Breaking: {prod_term.shape}")
+        # exit(0)
         for k in range(self.n_components):
             pi[:, k] = nu[:, k] * prod_term  # nu_k * product of (1 - nu_j)
+            # print(f"First round nu: {nu[:, k]}")
             prod_term = prod_term * (1 - nu[:, k])  # Update the product term for next component
+            # print(f"Updated prod_term: {prod_term}")
+
         return pi
 
 
@@ -40,6 +50,7 @@ class MixtureDensityNetwork(nn.Module):
         pi = self.stick_breaking(pi_logits)
         mu = self.mu(h).sigmoid() * 512
         sigma = torch.exp(self.sigma(h))
+
         return pi, mu, sigma
 
     def loss(self, pi, mu, sigma, y, l1_lambda=1e-4):
