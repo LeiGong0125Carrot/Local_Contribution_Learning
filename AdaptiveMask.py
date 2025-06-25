@@ -23,7 +23,7 @@ class AdaptiveMask(nn.Module):
     def __init__(self, ramp_size=3, init_val=0.001, shape=(1,)):
         nn.Module.__init__(self)
         self._ramp_size = ramp_size
-        self.max_length = 512
+        self.max_length = 8192
         self.batch_size = 16
         self._loss_coeff = 0.01
         self.current_val_left = init_val # nn.Parameter(torch.zeros(*shape) + init_val)
@@ -52,7 +52,7 @@ class AdaptiveMask(nn.Module):
                 sigma_curr = new_sigma
                 max_size_all = new_max_size_all
             
-            print(f"Component selected: {new_max_size_all}")
+            # print(f"Component selected: {new_max_size_all}")
             
             
             # keep the center at least 1.0
@@ -79,11 +79,10 @@ class AdaptiveMask(nn.Module):
             mask = Binarize.apply(mask)
             all_mask.append(mask)
         mask = torch.vstack(all_mask)
-        print(f"Final mask shape: {mask.shape}")
-        print(f"Final mask: {mask}")
+        # print(f"Final mask shape: {mask.shape}")
+        # print(f"Final mask: {mask}")
         mask = mask.clamp(0, 1)
-        print(f"Clamped mask: {mask}")
-        exit(0)
+        # print(f"Clamped mask: {mask}")
         return mask
 
     def get_current_max_size(self, include_ramp=True):

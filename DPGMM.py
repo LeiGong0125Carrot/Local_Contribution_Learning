@@ -48,7 +48,7 @@ class MixtureDensityNetwork(nn.Module):
         h = torch.relu(self.fc2(h))
         pi_logits = self.pi_logits(h)
         pi = self.stick_breaking(pi_logits)
-        mu = self.mu(h).sigmoid() * 512
+        mu = self.mu(h).sigmoid() * self.n_input
         sigma = torch.exp(self.sigma(h))
 
         return pi, mu, sigma

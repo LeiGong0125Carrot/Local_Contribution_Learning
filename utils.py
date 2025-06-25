@@ -23,7 +23,7 @@ import re
 from transformers import AutoTokenizer, AutoModel
 from itertools import chain
 import regex  # important - not using the usual re module
-
+import json
 # import docx
 from sklearn.feature_extraction.text import CountVectorizer
 # from gpu_mem_track import MemTracker
@@ -37,7 +37,8 @@ import regex as re # important - not using the usual re module
 from scipy.special import softmax
 import string
 # from docx.shared import RGBColor
-
+import random
+from transformers import DataCollatorWithPadding
 
 
 def check_and_create_folder(path):
@@ -169,6 +170,43 @@ class ProtoInstanceDataset(Dataset):
         encoding = self.tokenizer(self.texts[idx], return_tensors='pt', max_length=self.max_length, padding='max_length', truncation=True, is_split_into_words=False, add_special_tokens=True, return_offsets_mapping=True, return_special_tokens_mask=True )
         return {'original_text': text, "processed_text": processed_text, 'input_ids': encoding['input_ids'].flatten(), 'attention_mask': encoding['attention_mask'].flatten(), 'offset_mapping': encoding['offset_mapping'].squeeze(), "special_tokens_mask":encoding["special_tokens_mask"].squeeze(),'encoding':encoding}
 
+
+class MIMICDataset(Dataset):
+    def __init__(self, texts, labels, tokenizer, max_length):
+        self.texts = texts
+        self.labels = labels
+        self.tokenizer = tokenizer
+        self.max_length = max_length
+    def __len__(self):
+        return len(self.texts)
+
+    def __getitem__(self, idx):
+        text = self.texts[idx]
+        label = self.labels[idx]
+
+        encoding = self.tokenizer(
+            text,
+            return_tensors='pt',
+            max_length=self.max_length,
+            padding='max_length',
+            truncation=True,
+            is_split_into_words=False,
+            add_special_tokens=True,
+            return_offsets_mapping=True,
+            return_special_tokens_mask=True
+        )
+
+        return {
+            'original_text': text,
+            'input_ids': encoding['input_ids'].squeeze(0),
+            'attention_mask': encoding['attention_mask'].squeeze(0),
+            'offset_mapping': encoding['offset_mapping'].squeeze(0),
+            'special_tokens_mask': encoding['special_tokens_mask'].squeeze(0),
+            'label': torch.tensor(label)
+        }
+
+
+
 class GoldDataset(Dataset):
     def __init__(self, texts, labels, tokenizer, max_length=512):
         self.texts = texts
@@ -195,16 +233,62 @@ def load_data(data_file):
     return texts, labels
 
 
+def load_clinical_data(file_path, ratio=1.0, seed=42, split="train"):
+    with open(file_path, 'r') as f:
+        raw_data = json.load(f)['data']
+
+    print(f"Number of Full data: {len(raw_data)}")
+
+    if split == "train":
+        random.seed(seed)
+        random.shuffle(raw_data)
+        num_samples = int(len(raw_data) * ratio)
+        raw_data = raw_data[:num_samples]
+        print(f"Number of Sampled data (train): {len(raw_data)}")
+    else:
+        print(f"Using full dataset for split: {split}")
+
+    texts = []
+    labels = []
+    for item in raw_data:
+        texts.append(item['text'])
+        labels.append(item['out_hospital_mortality_30'])
+
+    return texts, labels
+
+
+
 def load_imdb_data(data_file):
     df = pd.read_csv(data_file)
     texts = df['review'].tolist()
     labels = [1 if sentiment == "positive" else 0 for sentiment in df['sentiment'].tolist()]
     return texts, labels
 
-def get_data_loader(dataset, dataset_path, world_size, rank, batch_size, max_length, bert_model_name, distributed = True):
-    data_file = dataset_path
-    base = "/scratch/nkw3mr/intepre_clinical_long_doc/ProtoLens/Datasets/"
-    tokenizer = AutoTokenizer.from_pretrained('sentence-transformers/all-mpnet-base-v2')
+def adjust_data_for_batch_size(texts, labels, batch_size):
+    """
+    调整数据以避免单样本batch，通过复制数据而不是丢弃
+    """
+    data_size = len(texts)
+    remainder = data_size % batch_size
+    
+    if remainder == 1:
+        # 复制最后一个样本
+        texts.append(texts[-1])
+        labels.append(labels[-1])
+        print(f"Dataset adjusted: {data_size} -> {len(texts)} samples to avoid single-sample batch")
+    
+    return texts, labels
+
+
+
+
+def get_data_loader(dataset, dataset_path, world_size, rank, batch_size, max_length, bert_model_name, ratio, seed, distributed = True):
+    
+    base = "/p/realai/knowledge-graph/lei/Local_Contribution_Learning/Datasets/"
+    tokenizer = AutoTokenizer.from_pretrained(bert_model_name)
+    val_batch_size = 24  # 或者更大，比如 batch_size * 4
+    test_batch_size = 24
+
     if dataset == "IMDB":
         # data_file = dataset_path
         texts, labels = load_imdb_data("/home/bwei2/ProtoTextClassification/Datasets/IMDB/IMDB Dataset.csv")
@@ -220,14 +304,40 @@ def get_data_loader(dataset, dataset_path, world_size, rank, batch_size, max_len
         
         train_texts,  train_labels = load_data(train_file)
         val_texts, val_labels = load_data(test_file)
+    if dataset in ['out_hospital_mortality_30', 'out_hospital_mortality_60', 'out_hospital_mortality_90']:
+        base = '/p/realai/knowledge-graph/lei/Local_Contribution_Learning/Datasets/MIMIC'
+        train_file = os.path.join(os.path.join(base, dataset), 'train.json')
+        dev_file = os.path.join(os.path.join(base, dataset), 'dev.json')
+        test_file = os.path.join(os.path.join(base, dataset), 'test.json')
 
-    train_dataset = TextClassificationDataset(train_texts, train_labels, tokenizer, max_length)
-    val_dataset = TextClassificationDataset(val_texts, val_labels, tokenizer, max_length)
+        train_texts, train_labels = load_clinical_data(train_file, ratio, seed, 'train')
+        dev_texts, dev_labels = load_clinical_data(dev_file, ratio, seed, 'dev')
+        test_texts, test_labels = load_clinical_data(test_file, ratio, seed, 'test')
+
+
+    if dataset in ['out_hospital_mortality_30', 'out_hospital_mortality_60', 'out_hospital_mortality_90']:
+        train_texts, train_labels = adjust_data_for_batch_size(train_texts, train_labels, batch_size)
+        dev_texts, dev_labels = adjust_data_for_batch_size(dev_texts, dev_labels, val_batch_size)
+        test_texts, test_labels = adjust_data_for_batch_size(test_texts, test_labels, test_batch_size)
+
+
+        train_dataset = MIMICDataset(train_texts, train_labels, tokenizer, max_length)
+        val_dataset = MIMICDataset(dev_texts, dev_labels, tokenizer, max_length)
+        test_dataset = MIMICDataset(test_texts, test_labels, tokenizer, max_length)
+
+
+    else:
+        train_dataset = TextClassificationDataset(train_texts, train_labels, tokenizer, max_length)
+        val_dataset = TextClassificationDataset(val_texts, val_labels, tokenizer, max_length)
+        test_dataloader = None
     # train_sampler = torch.utils.data.distributed.DistributedSampler(train_dataset, num_replicas=world_size, rank=rank)
     # train_loader = DataLoader(train_sub, batch_size=batch_size, shuffle=False, pin_memory=pin_memory, sampler=train_sampler)
     train_dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=False, pin_memory=True)
-    val_dataloader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False, pin_memory=True)
-    return train_dataloader, val_dataloader, tokenizer, train_texts
+    val_dataloader = DataLoader(val_dataset, batch_size=val_batch_size, shuffle=False, pin_memory=True)
+    test_dataloader = DataLoader(test_dataset, batch_size=test_batch_size, shuffle=False, pin_memory=True)
+
+    
+    return train_dataloader, val_dataloader, test_dataloader, tokenizer, train_texts
 
 
 

@@ -51,14 +51,35 @@ from AdaptiveMask import *
 EPSILON = np.finfo(np.float32).tiny
 # from MultiHeadSelfAttention import *
 from DPGMM import *
+from transformers import AutoModel, AutoTokenizer
+
+
+
+def tail_inclusive_analyzer(doc, k=5, pad_token="<PAD>"):
+    tokens = doc.split()                     # 或用自己的 tokenizer
+    L = len(tokens)
+    for i in range(L):
+        # 取 i 开头的 k 个 token；若不足 k 就右侧 PAD
+        span = tokens[i:i+k]
+        if len(span) < k:
+            span += [pad_token] * (k - len(span))
+        yield " ".join(span)
+
 
 
 class BERTClassifier(nn.Module):
     def __init__(self, args, bert_model_name, num_classes, num_prototype, batch_size, hidden_dim, max_length, distributed=False, tokenizer=None):
         super(BERTClassifier, self).__init__()
-        self.bert = SentenceTransformer('sentence-transformers/all-mpnet-base-v2') #all-MiniLM-L6-v2
+        # self.bert = SentenceTransformer('sentence-transformers/all-mpnet-base-v2') #all-MiniLM-L6-va
+        
+        
+        self.bert = AutoModel.from_pretrained(bert_model_name)
+        # print("max position embedding length:", self.bert.config.max_position_embeddings)
+
         for param in self.bert.parameters():
             param.requires_grad = False
+        
+        
         self.args = args
         self.batch_size = batch_size
         self.hidden_dim = hidden_dim
@@ -67,8 +88,9 @@ class BERTClassifier(nn.Module):
         self.max_length = max_length
         self.model_spec_folder = os.path.join(os.path.join(args.base_folder, args.data_set), args.bert_model_name)
         self.sentence_pool = pd.read_csv(os.path.join(self.model_spec_folder, str(args.data_set)+"_cluster_"+str(self.num_prototypes)+"_to_sub_sentence.csv"), index_col=0, header=None).to_numpy()
-        self.prototype_sentence_emb = self.get_proto_sentence_emb()
-
+        
+        self.prototype_sentence_emb = None
+        
         self.prototype_vectors = nn.Parameter(torch.tensor(np.load(os.path.join(self.model_spec_folder, str(args.data_set)+"_cluster_"+str(self.num_prototypes)+"_centers.npy"))),requires_grad=True)
         # self.prototype_vectors = nn.Parameter(self.ran_sent_init(),requires_grad=True)
         # self.prototype_vectors = nn.Parameter(torch.randn(self.num_prototypes, self.hidden_dim), requires_grad=True)
@@ -80,8 +102,10 @@ class BERTClassifier(nn.Module):
         self.samples = None
         self.keyphrase_ngram_range = (args.window_size, args.window_size)
         self.count = CountVectorizer(
-            ngram_range=self.keyphrase_ngram_range,
-            stop_words=[],
+            # ngram_range=self.keyphrase_ngram_range,
+            # stop_words=[],
+            # token_pattern=r'(?u)\b\w+\b',
+            analyzer=lambda d: tail_inclusive_analyzer(d, k=args.window_size)
             )
         self.num_gau_components = self.args.gaussian_num
         self.mdn = MixtureDensityNetwork(n_input=self.max_length, n_hidden=self.max_length, n_components=self.num_gau_components)
@@ -96,8 +120,22 @@ class BERTClassifier(nn.Module):
     
     def get_start_point(self, train_text, df, words, mode="train", batch_num=None, prototype_vec=None):
         # Get word embeddings for the provided words
-
-        word_embeddings = self.bert.encode(words, normalize_embeddings=True, convert_to_tensor=True, show_progress_bar=False)
+        # print(f"Number of words embedding: {len(words)}")
+        encoding = self.tokenizer(
+            words,
+            padding=True,
+            truncation=True,
+            max_length=self.args.window_size,
+            return_tensors='pt'
+        ).to(self.bert.device)
+        
+        
+        outputs = self.bert(**encoding)
+        cls_embeddings = outputs.last_hidden_state[:, 0, :]
+        word_embeddings = F.normalize(cls_embeddings, p=2, dim=1)
+        # print(f"Words Embedding dimension: {word_embeddings.shape}")
+        # exit(0)
+        # word_embeddings = self.bert(words, normalize_embeddings=True, convert_to_tensor=True, show_progress_bar=False)
 
         top_n = 1
         start_points_index = []
@@ -109,8 +147,8 @@ class BERTClassifier(nn.Module):
         for index, instance in enumerate(train_text):
             # Get candidate indices and corresponding words
             candidate_indices = df[index].nonzero()[1]  # Non-zero indices from dataframe
+
             candidates = [words[i] for i in candidate_indices]  # Words corresponding to non-zero indices
-            
             # Get the corresponding embeddings for the candidates
             candidate_embeddings = word_embeddings[candidate_indices]
             
@@ -129,17 +167,19 @@ class BERTClassifier(nn.Module):
             padded_emb.append(candidate_embeddings_)
             padded_candidates_words.append(candidates)
         padded_emb = torch.stack(padded_emb, dim=0)
+        
         distances = self.pairwise_cosine(padded_emb, self.prototype_vectors.detach()) # 16, 256, 8
         return padded_emb, padded_candidates_words, distances
 
 
     
-    def forward(self, input_ids=None, attention_mask=None, special_tokens_mask=None,
-                mode="train", 
-                new_proto=None, log=False, tau=1, offset_mapping=None, processed_text=None, 
-                word_embedding=None, current_batch_num=None, original_text=None):
+    def forward(self, input_ids=None, attention_mask=None,
+                mode="train", current_batch_num=None, original_text=None):
+        
+        
+        
         # self.bert.eval()
-        if current_batch_num % 50 == 0 and mode=="train" and current_batch_num >0:
+        if current_batch_num % 200 == 0 and mode=="train" and current_batch_num >0:
             aligned_prototype_vectors = self.align()
         else: 
             aligned_prototype_vectors = self.prototype_vectors
@@ -148,10 +188,17 @@ class BERTClassifier(nn.Module):
 
         new_input_ids = input_ids.unsqueeze(1).expand(-1,  self.num_prototypes, -1).reshape(-1, self.max_length)
         label_mask = input_ids.unsqueeze(1).expand(-1,  self.num_prototypes, -1)
+        # example = ["I loves panda jiaying is a piggy she is fat and stupid"]
+        # original_text = example
         words, words_in_order, df, vocab = self.get_words(original_text = original_text)
-        candidates_embeddings, candidate_words, chunk_similarity = self.get_start_point(original_text,df, words, mode=mode, batch_num=current_batch_num, prototype_vec=aligned_prototype_vectors) #(16, 512, 768)
+         
+
+
+        candidates_embeddings, candidate_words, chunk_similarity = self.get_start_point(original_text, df, words_in_order, mode=mode, batch_num=current_batch_num, prototype_vec=aligned_prototype_vectors) #(16, 512, 768)
+        
         # print(f"Chunk Similarity dimension: {chunk_similarity.shape}")
-        chunk_similarity = chunk_similarity.permute(0, 2, 1).reshape(-1, 512)
+        # print(f"chunk similarity dimension: {chunk_similarity.shape}")
+        chunk_similarity = chunk_similarity.permute(0, 2, 1).reshape(-1, self.max_length)
         # print(f"Reshaped Chunk Similarity dimension: {chunk_similarity.shape}")
         
         pi, mu, sigma = self.mdn(chunk_similarity)#.reshape(input_ids.shape[0], self.num_prototypes, -1)
@@ -160,15 +207,21 @@ class BERTClassifier(nn.Module):
 
         loss_mu = self.mdn.loss(pi, mu, sigma , mu_label)
         mask = self.AdaptiveMask(mu, sigma, pi, batch_size=input_ids.shape[0], num_prototypes=self.num_prototypes).reshape(input_ids.shape[0], self.num_prototypes, -1)
-    
-        x = self.bert._first_module().auto_model(input_ids, attention_mask, output_hidden_states=False).last_hidden_state#self.bert.encode(original_text,  normalize_embeddings=True, convert_to_tensor=True, show_progress_bar=False, output_value="token_embeddings")
+        # print(f"Mask dimension: {mask.shape}")    
+
+        # x = self.bert._first_module().auto_model(input_ids, attention_mask, output_hidden_states=False).last_hidden_state#self.bert.encode(original_text,  normalize_embeddings=True, convert_to_tensor=True, show_progress_bar=False, output_value="token_embeddings")
+        
+
+
+        x = self.bert(input_ids=input_ids, attention_mask=attention_mask, output_hidden_states=False).last_hidden_state
 
 
         Z_prime = self.mean_pooling(x, mask.permute(0,2, 1)).permute(0,2,1)#torch.sum(x * mask.unsqueeze(-1), dim=2) / torch.clamp(mask.unsqueeze(-1).sum(2), min=1e-9) #self.mean_pooling(x, mask)#torch.stack(outputs_, dim=1).squeeze()#.permute(1, 0, 2, 3) #(16, 8, 512, 768)
 
-
         cos = nn.CosineSimilarity(dim=2, eps=1e-6)
+       
         similarity = cos(Z_prime, aligned_prototype_vectors.unsqueeze(0)) #torch.exp(1/self.temperature_cosine * cos(z_prime, F.normalize(self.prototype_vectors, p=2,dim=1)))
+
         augmented_loss = 0#torch.clamp(0.2 - similarity, min=0).mean()
         logits = self.fc(similarity)
         self.diversity_loss = self._diversity_term(self.prototype_vectors)#self.diversity(mask)
@@ -216,10 +269,51 @@ class BERTClassifier(nn.Module):
             raise NotImplementedError
 
 
-    def get_proto_sentence_emb(self):
+    '''def get_proto_sentence_emb(self):
+        print(f"Sentence pool: {self.sentence_pool}")
+        exit(0)
         result = torch.stack([self.bert.encode( self.sentence_pool[i,:], normalize_embeddings=True, convert_to_tensor=True).unsqueeze(0) for i in range(self.num_prototypes)]).squeeze()
         return result
     
+        for i in range(self.num_prototypes):
+            batch = self.tokenizer(list(self.sentence_pool[i, :]), return_tensors='pt',
+                           padding='max_length', truncation=True, max_length=self.max_length)
+            batch = {k: v.cuda() for k, v in batch.items()}
+            
+            outputs = self.bert(**batch)
+            sentence_embeddings = outputs.last_hidden_state[:, 0, :]  # [B, H]
+            cls_embedding = F.normalize(cls_embedding, p=2, dim=1) '''
+    
+    def get_proto_sentence_emb(self):
+    
+        # print(f"Start Proto Get!")
+        all_embeddings = []
+        for i in range(self.num_prototypes):
+            # 取出当前 prototype 对应的句子池
+            # print(f"{i}th prototype")
+            sentences = list(self.sentence_pool[i, :])
+            
+            # 编码成 input_ids, attention_mask
+            batch = self.tokenizer(sentences, return_tensors='pt',
+                                padding=True, truncation=True,
+                                max_length=self.max_length)
+            batch = {k: v for k, v in batch.items()}
+            
+           
+            input_ids = batch['input_ids'].to(next(self.bert.parameters()).device)
+            attention_mask = batch['attention_mask'].to(next(self.bert.parameters()).device)
+
+            with torch.no_grad():
+                outputs = self.bert(input_ids=input_ids, attention_mask=attention_mask)
+                cls_embeddings = outputs.last_hidden_state[:, 0, :].unsqueeze(0)   # [B, H]
+                
+            cls_embeddings = F.normalize(cls_embeddings, p=2, dim=1)  # L2 normalization
+            # 对该 prototype 对应的多个句子求平均
+            
+            all_embeddings.append(cls_embeddings)
+            # print(f"{i}th prototype finished")
+        
+        return torch.stack(all_embeddings).squeeze()  # [num_prototypes, H]
     
     def get_token_embedding(self, original_text, words, vocab, emb = True):
         candidates = []
@@ -249,7 +343,7 @@ class BERTClassifier(nn.Module):
         return word_embeddings
 
     
-    def get_all_start_point(self, train_text, batch_num):
+    '''def get_all_start_point(self, train_text, batch_num):
         words, words_in_order, df, vocab = self.get_words(original_text = train_text)
 
         word_embeddings = self.get_word_emb(words)
@@ -272,17 +366,17 @@ class BERTClassifier(nn.Module):
                     encoding = self.tokenizer(keywords,  add_special_tokens=False)
                     self.start_point_dict[(prototype_id, proto_sent_id)] = encoding['input_ids']
                     with open(start_point_batch_file, 'wb') as file_:
-                        pickle.dump(self.start_point_dict, file_) 
+                        pickle.dump(self.start_point_dict, file_) '''
 
 
-    def ran_sent_init(self, ):
+    '''def ran_sent_init(self, ):
         df = pd.read_csv("/scratch/nkw3mr/intepre_clinical_long_doc/ProtoLens/Datasets/" + str(self.args.data_set) + "/"+str(self.args.data_set)+"_train_sub_sentences.csv")["review"].tolist()  # Replace "xx.csv" with your actual file path
         # Randomly select 10 indices
         random_indices = np.random.choice(len(df), size=self.num_prototypes, replace=False)
         # Get the elements at these random indices
         selected_elements = [df[i] for i in random_indices]
         ran_embeddings = self.bert.encode(selected_elements, normalize_embeddings=True, convert_to_tensor=True, show_progress_bar=False)
-        return ran_embeddings
+        return ran_embeddings'''
     def locality(self, mask, sent_mask=None):
         mask = torch.permute(mask, (0, 2, 1))
         threshold = 0.2 * sent_mask.unsqueeze(1).sum(2)
@@ -303,14 +397,16 @@ class BERTClassifier(nn.Module):
         prototypes = self.prototype_vectors 
         total_emb = None
 
-        prototype_sentence_emb = self.prototype_sentence_emb#total_emb#self.prototype_sentence_emb 
+        prototype_sentence_emb = self.prototype_sentence_emb.to(self.prototype_vectors.device)#total_emb#self.prototype_sentence_emb 
+
         # print(prototype_sentence_emb.shape) 
         # prototypes_normalized = F.normalize(prototypes, dim=-1)  # Shape: (8, 768)
         # candidates_normalized = F.normalize(prototype_sentence_emb, dim=-1)  # Shape: (8, 40, 768)
+
         cosine_sim = torch.einsum('ij,ikj->ik', prototypes, prototype_sentence_emb)  # Shape: (8, 40)
         # cosine_sim = torch.matmul(F.normalize(prototypes), F.normalize(prototype_sentence_emb).T)
         # Select the indices of the top 3 most similar candidates for each prototype
-        topk_values, topk_indices = torch.topk(cosine_sim, k=3, dim=-1)  # Shape of topk_indices: (8, 3)
+        topk_values, topk_indices = torch.topk(cosine_sim, k=1, dim=-1)  # Shape of topk_indices: (8, 3)
         logging.info(f"align result:")
         for prototype_idx, sentence_indices in enumerate(topk_indices):
             logging.info(f"Prototype {prototype_idx + 1}:")
